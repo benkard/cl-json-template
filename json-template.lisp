@@ -48,7 +48,8 @@
         do (setq in-command-p   (not in-command-p)
                  skip-newline-p (and in-command-p
                                      position
-                                     (char= (char string position) #\.)))
+                                     (member (char string position)
+                                             (list #\. #\#))))
         until (null terminator)))
 
 (defun parse-template-string (stream)
@@ -77,9 +78,13 @@
   (destructuring-bind (command-p . data)
       token
     (if command-p
-        (if (char= (char data 0) #\.)
-            (list* :directive (parse-directive data))
-            (list* :variable (parse-variable data)))
+        (case (char data 0)
+          ((#\.)
+           (list* :directive (parse-directive data)))
+          ((#\#)
+           (list* :comment data))
+          (otherwise
+           (list* :variable (parse-variable data))))
         (list :text data))))
 
 (defun parse-raw-tokens (tokens)
@@ -117,6 +122,8 @@
                                                alternative))))))
                       else if (member token-kind '(:variable :text))
                         collect token
+                      else if (eq token-kind :comment)
+                        do (progn)
                       else do (error "Encountered invalid token: ~S" token))))
     (values result tokens)))
 
