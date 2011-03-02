@@ -156,21 +156,17 @@
            (format stream "~A"
                    (if filter
                        (funcall (cdr (assoc filter *template-filters*))
-                                value)
+                                  value)
                        value)))))
       (:section
        (destructuring-bind (section branch alternative) (cdr thing)
          (let ((value (lookup-context contexts section)))
-           (print "section")
-           (print value)
            (expand-template-to-stream (if value branch alternative)
                                       (cons value contexts)
                                       stream))))
       (:repeated-section
-       (print "repeat")
        (destructuring-bind (section branch alternative) (cdr thing)
          (let ((value (lookup-context contexts section)))
-           (print value)
            (if value
                (mapc (lambda (ctx)
                        (expand-template-to-stream branch (cons ctx contexts) stream))
