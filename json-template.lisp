@@ -19,14 +19,14 @@
   (:use #:common-lisp)
   (:export #:parse-template-string
            #:expand-template
-           #:*template-filters*))
+           #:*template-formatters*))
 
 (in-package #:json-template)
 
 
-(defvar *template-filters*
-    `(;;("html"            . filter-html)
-      ;;("html-attr-value" . filter-html-attr-value)
+(defvar *template-formatters*
+    `(;;("html"            . format-html)
+      ;;("html-attr-value" . format-html-attr-value)
       ("raw"             . identity)))
 
 (defun tokenize-template-string (string)
@@ -151,11 +151,11 @@
       (:text
        (write-string (second thing) stream))
       (:variable
-       (destructuring-bind (variable filter) (cdr thing)
+       (destructuring-bind (variable formatter) (cdr thing)
          (let ((value (lookup-context contexts variable)))
            (format stream "~A"
-                   (if filter
-                       (funcall (cdr (assoc filter *template-filters*
+                   (if formatter
+                       (funcall (cdr (assoc formatter *template-formatters*
                                             :test #'equal))
                                 value)
                        value)))))
