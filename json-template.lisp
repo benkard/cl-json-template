@@ -124,6 +124,11 @@
   (with-output-to-string (out)
     (expand-template-to-stream template context out)))
 
+(defun getcontext (context key)
+  (if (string= key "@")
+      context
+      (getf context (intern (string-upcase (string key)) '#:keyword) nil)))
+
 (defun expand-template-to-stream (template context stream)
   (dolist (thing template)
     (ecase (first thing)
@@ -131,10 +136,7 @@
        (write-string (second thing) stream))
       (:variable
        (destructuring-bind (variable filter) (cdr thing)
-         (let ((value (getf context
-                            (intern (string-upcase variable)
-                                    '#:keyword)
-                            nil)))
+         (let ((value (getcontext context variable)))
            (format stream "~A"
                    (if filter
                        (funcall (cdr (assoc filter *template-filters*))
@@ -142,16 +144,13 @@
                        value)))))
       (:section
        (destructuring-bind (section branch alternative) (cdr thing)
-         (let ((value (getf context (intern (string-upcase section) '#:keyword) nil)))
+         (let ((value (getcontext context section)))
            (expand-template-to-stream (if value branch alternative)
                                       value
                                       stream))))
       (:repeated-section
        (destructuring-bind (section branch alternative) (cdr thing)
-         (let ((value (if (string= section "@")
-                          context
-                          (getf context (intern (string-upcase section) '#:keyword)
-                                nil))))
+         (let ((value (getcontext context section)))
            (if value
                (mapc (lambda (ctx)
                        (expand-template-to-stream branch ctx stream))
