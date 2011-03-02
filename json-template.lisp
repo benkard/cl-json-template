@@ -31,6 +31,7 @@
 
 (defun tokenize-template-string (string)
   (loop with in-command-p = nil
+        with skip-newline-p = nil
         with position = 0
         for terminator = (position (if in-command-p #\} #\{) string
                                    :start position)
@@ -38,8 +39,16 @@
                       (subseq string
                               position
                               (or terminator (length string))))
-        do (setq position (and terminator (1+ terminator))
-                 in-command-p (not in-command-p))
+        do (setq position (and terminator (1+ terminator)))
+        when (and skip-newline-p
+                  position
+                  (< position (length string))
+                  (char= (char string position) #\Newline))
+          do (incf position)
+        do (setq in-command-p   (not in-command-p)
+                 skip-newline-p (and in-command-p
+                                     position
+                                     (char= (char string position) #\.)))
         until (null terminator)))
 
 (defun parse-template-string (stream)
