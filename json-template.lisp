@@ -131,18 +131,33 @@
   (with-output-to-string (out)
     (expand-template-to-stream template (list context) out)))
 
-(defun getcontext (context key)
-  (getf context (intern (string-upcase (string key)) '#:keyword) nil))
+(defun getcontext (context key &aux (result context))
+  (dolist (key-component key result)
+    (setq result
+          (getf result
+                key-component
+                nil))))
+
+(defun listify-key (key &optional (start 0))
+  (let ((dot (position #\. key :start start)))
+    (if dot
+        (cons (intern (string-upcase (subseq key start dot))
+                      '#:keyword)
+              (listify-key key (1+ dot)))
+        (list (intern (string-upcase (subseq key start))
+                      '#:keyword)))))
 
 (defun lookup-context (contexts key)
+  (when (string= key "@")
+    (return-from lookup-context (first contexts)))
+  (unless (listp key)
+    (setq key (listify-key key)))
   (labels ((lookup-in-stack (context-stack)
-               (if (endp context-stack)
-                   nil
-                   (or (getcontext (first context-stack) key)
-                       (lookup-in-stack (rest context-stack))))))
-    (if (string= key "@")
-        (first contexts)
-        (lookup-in-stack contexts))))
+             (if (endp context-stack)
+                 nil
+                 (or (getcontext (first context-stack) key)
+                     (lookup-in-stack (rest context-stack))))))
+    (lookup-in-stack contexts)))
 
 
 (defun expand-template-to-stream (template contexts stream)
