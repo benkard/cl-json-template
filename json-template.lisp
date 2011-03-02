@@ -129,21 +129,30 @@
 
 (defun expand-template (template context)
   (with-output-to-string (out)
-    (expand-template-to-stream template context out)))
+    (expand-template-to-stream template (list context) out)))
 
 (defun getcontext (context key)
-  (if (string= key "@")
-      context
-      (getf context (intern (string-upcase (string key)) '#:keyword) nil)))
+  (getf context (intern (string-upcase (string key)) '#:keyword) nil))
 
-(defun expand-template-to-stream (template context stream)
+(defun lookup-context (contexts key)
+  (labels ((lookup-in-stack (context-stack)
+               (if (endp context-stack)
+                   nil
+                   (or (getcontext (first context-stack) key)
+                       (lookup-in-stack (rest context-stack))))))
+    (if (string= key "@")
+        (first contexts)
+        (lookup-in-stack contexts))))
+
+
+(defun expand-template-to-stream (template contexts stream)
   (dolist (thing template)
     (ecase (first thing)
       (:text
        (write-string (second thing) stream))
       (:variable
        (destructuring-bind (variable filter) (cdr thing)
-         (let ((value (getcontext context variable)))
+         (let ((value (lookup-context contexts variable)))
            (format stream "~A"
                    (if filter
                        (funcall (cdr (assoc filter *template-filters*))
@@ -151,15 +160,19 @@
                        value)))))
       (:section
        (destructuring-bind (section branch alternative) (cdr thing)
-         (let ((value (getcontext context section)))
+         (let ((value (lookup-context contexts section)))
+           (print "section")
+           (print value)
            (expand-template-to-stream (if value branch alternative)
-                                      value
+                                      (cons value contexts)
                                       stream))))
       (:repeated-section
+       (print "repeat")
        (destructuring-bind (section branch alternative) (cdr thing)
-         (let ((value (getcontext context section)))
+         (let ((value (lookup-context contexts section)))
+           (print value)
            (if value
                (mapc (lambda (ctx)
-                       (expand-template-to-stream branch ctx stream))
+                       (expand-template-to-stream branch (cons ctx contexts) stream))
                      value)
-               (expand-template-to-stream alternative value stream))))))))
+               (expand-template-to-stream alternative contexts stream))))))))
