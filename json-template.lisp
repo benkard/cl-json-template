@@ -155,8 +155,9 @@
          (let ((value (lookup-context contexts variable)))
            (format stream "~A"
                    (if filter
-                       (funcall (cdr (assoc filter *template-filters*))
-                                  value)
+                       (funcall (cdr (assoc filter *template-filters*
+                                            :test #'equal))
+                                value)
                        value)))))
       (:section
        (destructuring-bind (section branch alternative) (cdr thing)
