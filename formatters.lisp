@@ -34,6 +34,22 @@
               finally (write-string string out :start position))))))
 
 
+(defun escape-for-uri (string)
+  (with-output-to-string (out)
+    (map 'list
+         (lambda (char)
+           (let ((cnum (char-code char)))
+             (if (or (<= (char-code #\A) cnum (char-code #\Z))
+                     (<= (char-code #\a) cnum (char-code #\z))
+                     (<= (char-code #\0) cnum (char-code #\9))
+                     (member char
+                             '(#\$ #\- #\_ #\. #\+ #\! #\* #\( #\) #\')))
+                 (write-char char out)
+                 ;; NOTE: This assumes that (< cnum 256).
+                 (format out "%~2,'0X" cnum))))
+         string)))
+
+
 (defvar *template-formatters*
     `(("html"            . ,(make-escaper '((#\< . "&#60;")
                                             (#\> . "&#63;")
@@ -43,4 +59,5 @@
                                             (#\& . "&#38;")
                                             (#\' . "&#39;")
                                             (#\" . "&#34;"))))
+      ("url-param-value" . escape-for-uri)
       ("raw"             . identity)))
