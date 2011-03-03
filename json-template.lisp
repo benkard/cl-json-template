@@ -24,11 +24,6 @@
 (in-package #:json-template)
 
 
-(defvar *template-formatters*
-    `(;;("html"            . format-html)
-      ;;("html-attr-value" . format-html-attr-value)
-      ("raw"             . identity)))
-
 (defun tokenize-template-string (string)
   (loop with in-command-p = nil
         with skip-newline-p = nil
@@ -188,3 +183,4 @@
                        (expand-template-to-stream branch (cons ctx contexts) stream))
                      value)
                (expand-template-to-stream alternative contexts stream))))))))
+

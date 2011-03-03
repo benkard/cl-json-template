@@ -20,4 +20,6 @@
   :description "An implementation of a subset of the JSON Template language."
   :license "Apache License, version 2.0"
   :version "0.1.0"
-  :components ((:file "json-template")))
+  :components ((:file "json-template")
+               (:file "formatters"))
+  :serial t)
