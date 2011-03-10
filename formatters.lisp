@@ -22,6 +22,8 @@
   (let* ((escapees  (mapcar #'car replacements))
          (escapee-p (lambda (x) (member x escapees :test #'char=))))
     (lambda (string)
+      (unless (stringp string)
+        (setq string (format nil "~A" string)))
       (with-output-to-string (out)
         (loop with position = 0
               for escapee-pos = (position-if escapee-p string :start position)
@@ -35,6 +37,8 @@
 
 
 (defun escape-for-uri (string)
+  (unless (stringp string)
+    (setq string (format nil "~A" string)))
   (with-output-to-string (out)
     (map 'list
          (lambda (char)

@@ -47,8 +47,8 @@
                                              (list #\. #\#))))
         until (null terminator)))
 
-(defun parse-template-string (stream)
-  (parse-raw-tokens (tokenize-template-string stream)))
+(defun parse-template-string (string)
+  (parse-raw-tokens (tokenize-template-string string)))
 
 (defun parse-directive (string)
   (let* ((space1 (position #\Space string))
@@ -128,6 +128,8 @@
 
 (defun getcontext (context key &aux (result context))
   (dolist (key-component key result)
+    (when (atom result)
+      (return-from getcontext nil))
     (setq result
           (getf result
                 key-component
