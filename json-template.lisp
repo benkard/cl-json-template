@@ -91,30 +91,39 @@
                       for token-data = (rest token)
                       until (or (null tokens)
                                 (and (eq token-kind :directive)
-                                     (member (second token) '(:or :end))))
+                                     (member (second token) '(:or :end :alternates))))
                       do (setq tokens (cdr tokens))
                       if (eq token-kind :directive)
                         collect (multiple-value-bind (subresult rest-tokens)
                                     (parse-tokens tokens)
-                                  (let ((sub-end-tag (first rest-tokens)))
+                                  (let ((sub-end-tag (first rest-tokens))
+                                        (separator   nil)
+                                        (alternative nil))
                                     (setq tokens (rest rest-tokens))
-                                    (let ((alternative
-                                           (and (equal sub-end-tag '(:directive :or nil nil))
-                                                (multiple-value-bind (altresult rest-tokens2)
-                                                    (parse-tokens tokens)
-                                                  (setq tokens (rest rest-tokens2))
-                                                  altresult))))
-                                      (ecase (first token-data)
-                                        (:section
-                                         (list :section
-                                               (second token-data)
-                                               subresult
-                                               alternative))
-                                        (:repeated
-                                         (list :repeated-section
-                                               (third token-data)
-                                               subresult
-                                               alternative))))))
+                                    (when (equal sub-end-tag '(:directive :alternates "with" nil))
+                                      (multiple-value-bind (altresult rest-tokens2)
+                                          (parse-tokens tokens)
+                                        (setq tokens      (rest rest-tokens2)
+                                              sub-end-tag (first rest-tokens2)
+                                              separator   altresult)))
+                                    (when (equal sub-end-tag '(:directive :or nil nil))
+                                      (multiple-value-bind (altresult rest-tokens2)
+                                          (parse-tokens tokens)
+                                        (setq tokens      (rest rest-tokens2)
+                                              sub-end-tag (first rest-tokens2)
+                                              alternative altresult)))
+                                    (ecase (first token-data)
+                                      (:section
+                                       (list :section
+                                             (second token-data)
+                                             subresult
+                                             alternative))
+                                      (:repeated
+                                       (list :repeated-section
+                                             (third token-data)
+                                             subresult
+                                             alternative
+                                             separator)))))
                       else if (member token-kind '(:variable :text))
                         collect token
                       else if (eq token-kind :comment)
@@ -127,13 +136,12 @@
     (expand-template-to-stream template (list context) out)))
 
 (defun getcontext (context key &aux (result context))
-  (dolist (key-component key result)
-    (when (atom result)
-      (return-from getcontext nil))
-    (setq result
-          (getf result
-                key-component
-                nil))))
+  (ignore-errors
+    (dolist (key-component key result)
+      (setq result
+            (getf result
+                  key-component
+                  nil)))))
 
 (defun listify-key (key &optional (start 0))
   (let ((dot (position #\. key :start start)))
@@ -178,11 +186,16 @@
                                       (cons value contexts)
                                       stream))))
       (:repeated-section
-       (destructuring-bind (section branch alternative) (cdr thing)
+       (destructuring-bind (section branch alternative separator) (cdr thing)
          (let ((value (lookup-context contexts section)))
            (if value
-               (mapc (lambda (ctx)
-                       (expand-template-to-stream branch (cons ctx contexts) stream))
-                     value)
+               (let ((first-loop t))
+                 (map nil
+                      (lambda (ctx)
+                        (unless first-loop
+                          (expand-template-to-stream separator contexts stream))
+                        (expand-template-to-stream branch (cons ctx contexts) stream)
+                        (setq first-loop nil))
+                      value))
                (expand-template-to-stream alternative contexts stream))))))))
 
