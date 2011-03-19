@@ -24,6 +24,10 @@
 (in-package #:json-template)
 
 
+(defclass template ()
+  ((things :initarg :things :accessor template-things)))
+
+
 (defun tokenize-template-string (string)
   (loop with in-command-p = nil
         with skip-newline-p = nil
@@ -48,7 +52,8 @@
         until (null terminator)))
 
 (defun parse-template-string (string)
-  (parse-raw-tokens (tokenize-template-string string)))
+  (make-instance 'template
+     :things (parse-raw-tokens (tokenize-template-string string))))
 
 (defun parse-directive (string)
   (let* ((space1 (position #\Space string))
@@ -165,7 +170,7 @@
     (lookup-in-stack contexts)))
 
 
-(defun expand-template-to-stream (template contexts stream)
+(defun expand-things-to-stream (template contexts stream)
   (dolist (thing template)
     (ecase (first thing)
       (:text
@@ -182,9 +187,9 @@
       (:section
        (destructuring-bind (section branch alternative) (cdr thing)
          (let ((value (lookup-context contexts section)))
-           (expand-template-to-stream (if value branch alternative)
-                                      (cons value contexts)
-                                      stream))))
+           (expand-things-to-stream (if value branch alternative)
+                                    (cons value contexts)
+                                    stream))))
       (:repeated-section
        (destructuring-bind (section branch alternative separator) (cdr thing)
          (let ((value (lookup-context contexts section)))
@@ -193,9 +198,13 @@
                  (map nil
                       (lambda (ctx)
                         (unless first-loop
-                          (expand-template-to-stream separator contexts stream))
-                        (expand-template-to-stream branch (cons ctx contexts) stream)
+                          (expand-things-to-stream separator contexts stream))
+                        (expand-things-to-stream branch (cons ctx contexts) stream)
                         (setq first-loop nil))
                       value))
-               (expand-template-to-stream alternative contexts stream))))))))
+               (expand-things-to-stream alternative contexts stream))))))))
+
+
+(defun expand-template-to-stream (template contexts stream)
+  (expand-things-to-stream (template-things template) contexts stream))
 
