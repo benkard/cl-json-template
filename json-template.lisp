@@ -24,6 +24,12 @@
 (in-package #:json-template)
 
 
+(defconstant +not-found+
+  (if (boundp '+not-found+)
+      (symbol-value '+not-found+)
+      '#:not-found))
+
+
 (defclass template ()
   ((things :initarg :things :accessor template-things)))
 
@@ -141,12 +147,15 @@
     (expand-template-to-stream template (list context) out)))
 
 (defun getcontext (context key &aux (result context))
-  (ignore-errors
-    (dolist (key-component key result)
-      (setq result
-            (getf result
-                  key-component
-                  nil)))))
+  (dolist (key-component key result)
+    (handler-case
+        (setq result
+              (getf result
+                    key-component
+                    +not-found+))
+      (error (condition)
+        (declare (ignore condition))
+        (return-from getcontext +not-found+)))))
 
 (defun listify-key (key &optional (start 0))
   (let ((dot (position #\. key :start start)))
@@ -165,10 +174,11 @@
   (labels ((lookup-in-stack (context-stack)
              (if (endp context-stack)
                  nil
-                 (or (getcontext (first context-stack) key)
-                     (lookup-in-stack (rest context-stack))))))
+                 (let ((thing (getcontext (first context-stack) key)))
+                   (if (eql thing +not-found+)
+                       (lookup-in-stack (rest context-stack))
+                       thing)))))
     (lookup-in-stack contexts)))
-
 
 (defun expand-things-to-stream (template contexts stream)
   (dolist (thing template)
