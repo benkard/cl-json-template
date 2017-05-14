@@ -177,13 +177,15 @@
        (write-string (second thing) stream))
       (:variable
        (destructuring-bind (variable formatter) (cdr thing)
-         (let ((value (lookup-context contexts variable)))
-           (format stream "~A"
-                   (if formatter
-                       (funcall (cdr (assoc formatter *template-formatters*
-                                            :test #'equal))
-                                value)
-                       value)))))
+         (let* ((value (lookup-context contexts variable))
+                (formatted-value (if formatter
+                                     (funcall (cdr (assoc formatter *template-formatters*
+                                                          :test #'equal))
+                                              value)
+                                     value)))
+           (typecase formatted-value
+             (null (values))
+             (t (format stream "~A" formatted-value))))))
       (:section
        (destructuring-bind (section branch alternative) (cdr thing)
          (let ((value (lookup-context contexts section)))
